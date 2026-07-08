@@ -59,7 +59,13 @@
               <div class="actions">
                 <button id="analyzeButton">Analyze &amp; Save</button>
                 <button id="clearButton" class="secondary">Clear</button>
+                <button id="dictationButton" class="voice-button" type="button">
+                  🎙️ Dictate Entry
+                </button>
                 <button id="exportButton" class="ghost">Export JSON</button>
+                <button id="clearHistoryButton" class="ghost">
+                  Clear history
+                </button>
                 <label class="file-label ghost" for="importInput"
                   >Import JSON</label
                 >
@@ -69,6 +75,25 @@
                   type="file"
                   accept="application/json"
                 />
+              </div>
+              <div class="voice-controls">
+                <span id="micStatus" class="mic-pill">Microphone: idle</span>
+                <span id="recordingIndicator" class="recording-pill hidden">
+                  ● Recording
+                </span>
+              </div>
+              <div id="meterPanel" class="meter-panel">
+                <div id="waveform" class="waveform" aria-hidden="true">
+                  <span></span><span></span><span></span><span></span
+                  ><span></span> <span></span><span></span><span></span
+                  ><span></span><span></span> <span></span><span></span
+                  ><span></span><span></span><span></span> <span></span
+                  ><span></span><span></span><span></span><span></span>
+                </div>
+                <div class="meter-meta">
+                  <span id="volumeLabel">Volume: 0.00</span>
+                  <span id="stressPreview">Stress preview: —</span>
+                </div>
               </div>
               <div id="statusMessage" class="notice">
                 Your entry is analyzed locally—no network calls are made after
@@ -110,6 +135,36 @@
               </div>
               <div id="analyticsMeta" class="analysis-meta">
                 No entry analyzed yet.
+              </div>
+              <div id="analyticsDetails" class="metrics-grid">
+                <div>
+                  <span>Timestamp</span>
+                  <strong id="timestampDetail">—</strong>
+                </div>
+                <div>
+                  <span>Sentiment</span>
+                  <strong id="sentimentDetail">—</strong>
+                </div>
+                <div>
+                  <span>Confidence</span>
+                  <strong id="confidenceDetail">—</strong>
+                </div>
+                <div>
+                  <span>Flow state</span>
+                  <strong id="flowDetail">—</strong>
+                </div>
+                <div>
+                  <span>Vocal stress</span>
+                  <strong id="stressDetail">—</strong>
+                </div>
+                <div>
+                  <span>Stress level</span>
+                  <strong id="stressLevelDetail">—</strong>
+                </div>
+                <div>
+                  <span>Normalized score</span>
+                  <strong id="cognitiveDetail">—</strong>
+                </div>
               </div>
               <div id="confidenceText" class="confidence">Confidence: —</div>
               <div id="interventionText" class="intervention">
@@ -275,32 +330,18 @@
     </div>
 
     <script type="module">
+      import {
+        deriveCognitiveScore,
+        deriveFlowState,
+        deriveStressState,
+        deriveIntervention,
+      } from "./app-logic.js";
+
       const STORAGE_KEY = "ppj_entries";
       const SETTINGS_KEY = "ppj_settings";
       const METRICS_KEY = "ppj_metrics";
       const SESSIONS_KEY = "ppj_sessions";
-      const CONFIDENCE_THRESHOLD = 0.75;
-      const FOCUS_DURATION = 25 * 60; // 25 minutes in seconds
-      const stateConfig = {
-        flow: {
-          label: "Flow",
-          icon: "🚀",
-          intervention:
-            "You are operating in a high-leverage mental state. Capitalize on this momentum by tackling your deepest, most creative tasks right now.",
-        },
-        stress: {
-          label: "Stress",
-          icon: "⚠️",
-          intervention:
-            "Your entry indicates high friction or autonomic arousal. Action step: Perform a 2-minute Physiological Sigh (two deep inhales through the nose, one sharp exhale through the mouth) to reset your nervous system.",
-        },
-        baseline: {
-          label: "Baseline",
-          icon: "⚖️",
-          intervention:
-            "You are maintaining steady cognitive reserves. Set one clear target for the next 90 minutes.",
-        },
-      };
+      const FOCUS_DURATION = 25 * 60;
 
       const entryText = document.getElementById("entryText");
       const wordCount = document.getElementById("wordCount");
@@ -308,7 +349,9 @@
       const lengthPrompt = document.getElementById("lengthPrompt");
       const analyzeButton = document.getElementById("analyzeButton");
       const clearButton = document.getElementById("clearButton");
+      const dictationButton = document.getElementById("dictationButton");
       const exportButton = document.getElementById("exportButton");
+      const clearHistoryButton = document.getElementById("clearHistoryButton");
       const importInput = document.getElementById("importInput");
       const copyProtocolButton = document.getElementById("copyProtocolButton");
       const statusMessage = document.getElementById("statusMessage");
@@ -325,6 +368,20 @@
       const trendChartCanvas = document.getElementById("trendChart");
       const encryptionToggle = document.getElementById("encryptionToggle");
       const passphraseInput = document.getElementById("passphraseInput");
+      const micStatus = document.getElementById("micStatus");
+      const recordingIndicator = document.getElementById("recordingIndicator");
+      const volumeLabel = document.getElementById("volumeLabel");
+      const stressPreview = document.getElementById("stressPreview");
+      const waveformBars = Array.from(
+        document.querySelectorAll("#waveform span"),
+      );
+      const timestampDetail = document.getElementById("timestampDetail");
+      const sentimentDetail = document.getElementById("sentimentDetail");
+      const confidenceDetail = document.getElementById("confidenceDetail");
+      const flowDetail = document.getElementById("flowDetail");
+      const stressDetail = document.getElementById("stressDetail");
+      const stressLevelDetail = document.getElementById("stressLevelDetail");
+      const cognitiveDetail = document.getElementById("cognitiveDetail");
 
       let sentimentPipeline = null;
       let chart = null;
@@ -333,7 +390,16 @@
       let passphraseCache = "";
       let modelReady = false;
       let modelLoadFailed = false;
+      let modelLoading = false;
       let isAnalyzing = false;
+      let recognition = null;
+      let recognitionActive = false;
+      let audioContext = null;
+      let analyser = null;
+      let microphoneStream = null;
+      let animationFrameId = null;
+      let voiceAmplitudeSamples = [];
+      let voiceSessionActive = false;
 
       const showError = (message) => {
         errorMessage.textContent = message;
@@ -401,10 +467,12 @@
       const saveEntries = () => {
         try {
           localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+          return true;
         } catch (error) {
           showError(
             "Storage quota exceeded. Export your data or clear old entries.",
           );
+          return false;
         }
       };
 
@@ -418,12 +486,7 @@
         }
 
         const latest = entries[entries.length - 1];
-        if (latest) {
-          renderLatestAnalysis(latest);
-        } else {
-          renderLatestAnalysis(null);
-        }
-
+        renderLatestAnalysis(latest || null);
         renderChart();
       };
 
@@ -436,22 +499,55 @@
           interventionText.textContent =
             "Your next step will appear here after you save an entry.";
           analyticsCard.className = "analysis-card baseline";
+          timestampDetail.textContent = "—";
+          sentimentDetail.textContent = "—";
+          confidenceDetail.textContent = "—";
+          flowDetail.textContent = "—";
+          stressDetail.textContent = "—";
+          stressLevelDetail.textContent = "—";
+          cognitiveDetail.textContent = "—";
           return;
         }
 
-        const config = stateConfig[entry.state] || stateConfig.baseline;
-        stateHeadline.textContent = config.label;
-        stateEmoji.textContent = config.icon;
-        analyticsMeta.textContent = `Saved ${new Date(entry.timestamp).toLocaleString()}`;
+        const flow = entry.flowState || "Baseline";
+        const stressState = entry.vocalStressState || "—";
+        const cognitiveScore =
+          entry.cognitiveScore ?? entry.normalizedScore ?? 50;
         const confidence =
           typeof entry.confidence === "number" ? entry.confidence : 0;
         const labelText =
           entry.label && entry.label !== "UNANALYZED"
             ? entry.label
             : "Deferred";
+
+        stateHeadline.textContent =
+          entry.state === "flow"
+            ? "Flow"
+            : entry.state === "stress"
+              ? "Stress"
+              : "Baseline";
+        stateEmoji.textContent =
+          entry.state === "flow"
+            ? "🚀"
+            : entry.state === "stress"
+              ? "⚠️"
+              : "⚖️";
+        analyticsMeta.textContent = `Saved ${new Date(entry.timestamp).toLocaleString()}`;
+        timestampDetail.textContent = new Date(
+          entry.timestamp,
+        ).toLocaleString();
+        sentimentDetail.textContent = labelText;
+        confidenceDetail.textContent = `${Math.round(confidence * 100)}%`;
+        flowDetail.textContent = flow;
+        stressDetail.textContent =
+          entry.vocalStressScore != null
+            ? `${entry.vocalStressScore} / 100`
+            : "—";
+        stressLevelDetail.textContent = stressState;
+        cognitiveDetail.textContent = `${Math.round(cognitiveScore)} / 100`;
         confidenceText.textContent = `Confidence: ${Math.round(confidence * 100)}% · ${labelText}`;
         interventionText.textContent =
-          entry.intervention || config.intervention;
+          entry.intervention || "A brief reset and one clear next action";
         analyticsCard.className = `analysis-card ${entry.state || "baseline"}`;
       };
 
@@ -470,13 +566,18 @@
 
         const recentEntries = entries.slice(-7);
         const labels = recentEntries.map((entry) =>
-          new Date(entry.timestamp).toLocaleDateString(undefined, {
+          new Date(entry.timestamp).toLocaleString(undefined, {
             month: "short",
             day: "numeric",
+            hour: "numeric",
+            minute: "2-digit",
           }),
         );
-        const scores = recentEntries.map((entry) =>
-          Number(entry.normalizedScore ?? 50),
+        const cognitiveScores = recentEntries.map((entry) =>
+          Number(entry.cognitiveScore ?? entry.normalizedScore ?? 50),
+        );
+        const stressScores = recentEntries.map((entry) =>
+          Number(entry.vocalStressScore ?? 50),
         );
         const ctx = trendChartCanvas.getContext("2d");
         chart = new window.Chart(ctx, {
@@ -485,20 +586,26 @@
             labels,
             datasets: [
               {
-                label: "Performance score",
-                data: scores,
+                label: "Cognitive sentiment",
+                data: cognitiveScores,
                 borderColor: "#60a5fa",
-                backgroundColor: "rgba(96,165,250,0.18)",
-                pointBackgroundColor: (context) => {
-                  const value = context.raw;
-                  if (value >= 60) return "#10b981";
-                  if (value <= 40) return "#ef4444";
-                  return "#f59e0b";
-                },
+                backgroundColor: "rgba(96,165,250,0.16)",
+                pointBackgroundColor: "#60a5fa",
                 pointRadius: 4,
                 pointHoverRadius: 6,
                 tension: 0.28,
                 fill: true,
+              },
+              {
+                label: "Vocal stress",
+                data: stressScores,
+                borderColor: "#ef4444",
+                backgroundColor: "rgba(239,68,68,0.14)",
+                pointBackgroundColor: "#ef4444",
+                pointRadius: 4,
+                pointHoverRadius: 6,
+                tension: 0.28,
+                fill: false,
               },
             ],
           },
@@ -511,7 +618,11 @@
                 callbacks: {
                   label: (context) => {
                     const entry = recentEntries[context.dataIndex];
-                    return `${entry.state.toUpperCase()} · confidence ${(entry.confidence * 100).toFixed(0)}%`;
+                    return `${context.dataset.label}: ${context.raw} · Flow: ${entry.flowState || "Baseline"}`;
+                  },
+                  title: (tooltipItems) => {
+                    const entry = recentEntries[tooltipItems[0].dataIndex];
+                    return `${new Date(entry.timestamp).toLocaleString()}`;
                   },
                 },
               },
@@ -532,38 +643,38 @@
         });
       };
 
-      const deriveState = (label, confidence) => {
-        if (label === "POSITIVE" && confidence >= CONFIDENCE_THRESHOLD)
-          return "flow";
-        if (label === "NEGATIVE" && confidence >= CONFIDENCE_THRESHOLD)
-          return "stress";
-        return "baseline";
-      };
-
-      const makeEntry = async (text, analysis) => {
-        const normalizedScore =
-          analysis?.confidence != null
-            ? analysis.label === "POSITIVE"
-              ? analysis.confidence * 100
-              : -analysis.confidence * 100 + 100
-            : 50;
-        const state = analysis?.state || "baseline";
-        const intervention =
-          stateConfig[state]?.intervention || stateConfig.baseline.intervention;
+      const makeEntry = async (text, analysis, biometric = null) => {
+        const label = analysis?.label || "UNANALYZED";
+        const confidence = Number(analysis?.confidence ?? 0);
+        const cognitiveScore = deriveCognitiveScore(label, confidence);
+        const flowState = deriveFlowState(label, confidence);
+        const stressScore = biometric?.score ?? 50;
+        const stressState = deriveStressState(stressScore);
+        const intervention = deriveIntervention({
+          sentimentLabel: label,
+          confidence,
+          stressScore,
+        });
         const encrypted = encryptionToggle.checked && Boolean(passphraseCache);
         const payloadText = encrypted
           ? await encryptText(text, passphraseCache)
           : text;
+        const state = flowState.key;
 
         return {
           id: crypto.randomUUID(),
           timestamp: new Date().toISOString(),
           text: payloadText,
           encrypted,
-          label: analysis?.label || "UNANALYZED",
-          confidence: analysis?.confidence ?? 0,
-          normalizedScore,
+          label,
+          confidence,
+          cognitiveScore,
+          normalizedScore: cognitiveScore,
           state,
+          flowState: flowState.short,
+          flowStateLabel: flowState.label,
+          vocalStressScore: stressScore,
+          vocalStressState: stressState.label,
           wordCount: text.trim().split(/\s+/).filter(Boolean).length,
           intervention,
         };
@@ -679,11 +790,7 @@
 
       const analyzeText = async (text) => {
         if (!sentimentPipeline) {
-          return {
-            label: "UNANALYZED",
-            confidence: 0,
-            state: "baseline",
-          };
+          return { label: "UNANALYZED", confidence: 0 };
         }
 
         try {
@@ -691,24 +798,15 @@
           const parsed = Array.isArray(result) ? result[0] : result;
           const label = parsed?.label?.toUpperCase() || "POSITIVE";
           const confidence = Number(parsed?.score ?? 0);
-          return {
-            label,
-            confidence,
-            state: deriveState(label, confidence),
-          };
+          return { label, confidence };
         } catch (error) {
           console.warn("Inference failed", error);
-          return {
-            label: "UNANALYZED",
-            confidence: 0,
-            state: "baseline",
-          };
+          return { label: "UNANALYZED", confidence: 0 };
         }
       };
 
       const setAnalyzeButtonState = () => {
-        analyzeButton.disabled =
-          isAnalyzing || (!modelReady && !modelLoadFailed);
+        analyzeButton.disabled = isAnalyzing || modelLoading;
         analyzeButton.textContent = isAnalyzing
           ? "Analyzing…"
           : "Analyze & Save";
@@ -727,7 +825,8 @@
         statusMessage.textContent = "Analyzing locally…";
 
         const analysis = await analyzeText(text);
-        const entry = await makeEntry(text, analysis);
+        const biometric = voiceSessionActive ? collectVoiceMetrics() : null;
+        const entry = await makeEntry(text, analysis, biometric);
         entries.push(entry);
         entries = entries.sort(
           (a, b) => new Date(a.timestamp) - new Date(b.timestamp),
@@ -750,10 +849,13 @@
       };
 
       const loadModel = async () => {
+        modelLoading = true;
+        setAnalyzeButtonState();
+        modelStatus.classList.remove("error");
+        modelStatus.classList.add("ready");
+        modelStatusText.textContent = "Loading model…";
+
         try {
-          modelStatus.classList.remove("error");
-          modelStatus.classList.add("ready");
-          modelStatusText.textContent = "Loading model…";
           const { pipeline, env } =
             await import("https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.0");
           env.allowLocalModels = false;
@@ -769,7 +871,6 @@
           modelStatusText.textContent = "Model: ready";
           statusMessage.textContent =
             "Model ready. Your entries will be analyzed locally.";
-          setAnalyzeButtonState();
         } catch (error) {
           console.warn("Model load failed", error);
           modelReady = false;
@@ -782,6 +883,8 @@
           );
           statusMessage.textContent =
             "Model unavailable. Entries will be saved without analysis.";
+        } finally {
+          modelLoading = false;
           setAnalyzeButtonState();
         }
       };
@@ -814,6 +917,172 @@
         }
       };
 
+      const resetVoiceMeter = () => {
+        waveformBars.forEach((bar, index) => {
+          bar.style.height = `${Math.max(8, 24 - index * 1.2)}px`;
+        });
+        volumeLabel.textContent = "Volume: 0.00";
+        stressPreview.textContent = "Stress preview: —";
+      };
+
+      const updateVoiceMeter = () => {
+        if (!analyser || !voiceSessionActive) {
+          return;
+        }
+
+        const dataArray = new Uint8Array(analyser.fftSize);
+        analyser.getByteTimeDomainData(dataArray);
+        let sumSquares = 0;
+        let peak = 0;
+        const values = [];
+        for (const value of dataArray) {
+          const normalized = (value - 128) / 128;
+          sumSquares += normalized * normalized;
+          peak = Math.max(peak, Math.abs(normalized));
+          values.push(Math.abs(normalized));
+        }
+        const rms = Math.sqrt(sumSquares / dataArray.length);
+        if (rms > 0.01) {
+          voiceAmplitudeSamples.push(rms);
+        }
+        const displayAmplitude = Math.min(1, rms * 1.8);
+        waveformBars.forEach((bar, index) => {
+          const targetHeight =
+            12 + displayAmplitude * (34 + (index % 5)) + (index % 3) * 4;
+          bar.style.height = `${Math.max(6, Math.min(70, targetHeight))}px`;
+        });
+        volumeLabel.textContent = `Volume: ${displayAmplitude.toFixed(2)}`;
+        stressPreview.textContent = `Stress preview: ${Math.round(displayAmplitude * 100)} / 100`;
+        animationFrameId = window.requestAnimationFrame(updateVoiceMeter);
+      };
+
+      const collectVoiceMetrics = () => {
+        if (voiceAmplitudeSamples.length === 0) {
+          return { score: 50 };
+        }
+        const mean =
+          voiceAmplitudeSamples.reduce((a, b) => a + b, 0) /
+          voiceAmplitudeSamples.length;
+        const variance =
+          voiceAmplitudeSamples.reduce(
+            (value, sample) => value + Math.pow(sample - mean, 2),
+            0,
+          ) / voiceAmplitudeSamples.length;
+        const stdDev = Math.sqrt(variance);
+        const score = Math.round(
+          Math.min(100, Math.max(10, 10 + mean * 45 + stdDev * 60)),
+        );
+        return { score };
+      };
+
+      const stopVoiceAnalysis = async () => {
+        if (animationFrameId) {
+          window.cancelAnimationFrame(animationFrameId);
+        }
+        if (microphoneStream) {
+          microphoneStream.getTracks().forEach((track) => track.stop());
+        }
+        if (audioContext) {
+          await audioContext.close();
+        }
+        microphoneStream = null;
+        analyser = null;
+        audioContext = null;
+        voiceSessionActive = false;
+        recordingIndicator.classList.add("hidden");
+        dictationButton.classList.remove("recording");
+        micStatus.textContent = "Microphone: idle";
+        resetVoiceMeter();
+      };
+
+      const startVoiceAnalysis = async () => {
+        if (!window.SpeechRecognition && !window.webkitSpeechRecognition) {
+          dictationButton.disabled = true;
+          dictationButton.title =
+            "Voice-to-text is not supported on this browser.";
+          showError("Voice-to-text is not supported on this browser.");
+          return;
+        }
+
+        if (recognitionActive) {
+          recognition.stop();
+          await stopVoiceAnalysis();
+          return;
+        }
+
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({
+            audio: true,
+          });
+          microphoneStream = stream;
+          audioContext = new AudioContext();
+          analyser = audioContext.createAnalyser();
+          analyser.fftSize = 256;
+          const source = audioContext.createMediaStreamSource(stream);
+          source.connect(analyser);
+          voiceAmplitudeSamples = [];
+          voiceSessionActive = true;
+          recordingIndicator.classList.remove("hidden");
+          dictationButton.classList.add("recording");
+          dictationButton.textContent = "🛑 Stop Dictation";
+          micStatus.textContent = "Microphone: live";
+          clearError();
+          animationFrameId = window.requestAnimationFrame(updateVoiceMeter);
+
+          const SpeechRecognitionCtor =
+            window.SpeechRecognition || window.webkitSpeechRecognition;
+          recognition = new SpeechRecognitionCtor();
+          recognition.continuous = true;
+          recognition.interimResults = true;
+          recognition.lang = "en-US";
+          recognition.onresult = (event) => {
+            let transcript = "";
+            for (let i = event.resultIndex; i < event.results.length; i += 1) {
+              const result = event.results[i];
+              transcript += result[0].transcript;
+              if (result.isFinal) {
+                const trimmed = result[0].transcript.trim();
+                if (trimmed) {
+                  const currentText = entryText.value;
+                  entryText.value =
+                    `${currentText}${currentText ? " " : ""}${trimmed}`.trim();
+                  updateCounters();
+                  statusMessage.textContent = `Captured voice: ${trimmed}`;
+                }
+              }
+            }
+          };
+          recognition.onerror = (event) => {
+            if (event.error === "not-allowed") {
+              showError(
+                "Microphone permission was denied. Enable microphone access in your browser settings to use voice dictation.",
+              );
+            } else if (event.error !== "aborted") {
+              showError(`Voice transcription error: ${event.error}`);
+            }
+            recognitionActive = false;
+            stopVoiceAnalysis();
+          };
+          recognition.onend = () => {
+            if (recognitionActive) {
+              recognition.start();
+            } else {
+              stopVoiceAnalysis();
+            }
+          };
+
+          recognitionActive = true;
+          recognition.start();
+        } catch (error) {
+          console.warn("Voice setup failed", error);
+          recognitionActive = false;
+          showError(
+            "Microphone access is unavailable. Voice dictation could not start.",
+          );
+          await stopVoiceAnalysis();
+        }
+      };
+
       entryText.addEventListener("input", updateCounters);
       clearButton.addEventListener("click", () => {
         entryText.value = "";
@@ -821,6 +1090,7 @@
         clearError();
       });
       analyzeButton.addEventListener("click", saveCurrentEntry);
+      dictationButton.addEventListener("click", startVoiceAnalysis);
       copyProtocolButton.addEventListener("click", async () => {
         try {
           await navigator.clipboard.writeText(interventionText.textContent);
@@ -830,6 +1100,14 @@
         }
       });
       exportButton.addEventListener("click", exportData);
+      clearHistoryButton.addEventListener("click", () => {
+        if (window.confirm("Clear all saved journal entries?")) {
+          entries = [];
+          saveEntries();
+          renderEntries();
+          statusMessage.textContent = "Journal history cleared.";
+        }
+      });
       importInput.addEventListener("change", (event) => {
         const [file] = event.target.files || [];
         if (file) importData(file);
@@ -849,10 +1127,15 @@
       setAnalyzeButtonState();
       loadModel();
       updateEntryDisplay();
+      resetVoiceMeter();
+
+      if (!window.SpeechRecognition && !window.webkitSpeechRecognition) {
+        dictationButton.disabled = true;
+        dictationButton.title =
+          "Voice-to-text is not supported on this browser.";
+      }
 
       // ============= PERFORMANCE HUB FEATURES =============
-
-      // View toggle
       const journalView = document.getElementById("journalView");
       const performanceView = document.getElementById("performanceView");
       const viewToggleButtons = document.querySelectorAll(".view-toggle");
@@ -875,7 +1158,6 @@
         });
       });
 
-      // Focus Timer Logic
       let timerRunning = false;
       let timerTimeRemaining = FOCUS_DURATION;
       let timerInterval = null;
@@ -901,19 +1183,17 @@
         timerPauseButton.classList.add("hidden");
         timerStatus.textContent = "✅ Session completed! Added to journal.";
 
-        // Log completion
         const logEntry = await makeEntry(
           "Completed 25-minute Deep Work focus session",
           {
             label: "POSITIVE",
             confidence: 0.95,
-            state: "flow",
           },
         );
         entries.push(logEntry);
         saveEntries();
+        renderEntries();
 
-        // Save session
         let sessions = JSON.parse(localStorage.getItem(SESSIONS_KEY) || "[]");
         sessions.push({
           id: crypto.randomUUID(),
@@ -922,7 +1202,6 @@
         });
         localStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions));
 
-        // Reset after 2 seconds
         setTimeout(() => {
           timerTimeRemaining = FOCUS_DURATION;
           updateTimerDisplay();
@@ -940,7 +1219,7 @@
           timerStatus.textContent = "Focus session in progress...";
 
           timerInterval = setInterval(() => {
-            timerTimeRemaining--;
+            timerTimeRemaining -= 1;
             updateTimerDisplay();
 
             if (timerTimeRemaining <= 0) {
@@ -969,7 +1248,6 @@
           "Click Play to start a 25-minute focus session.";
       });
 
-      // Metrics Logger
       const energySlider = document.getElementById("energySlider");
       const focusSlider = document.getElementById("focusSlider");
       const sleepInput = document.getElementById("sleepInput");
@@ -1007,8 +1285,8 @@
       };
 
       saveMetricsButton.addEventListener("click", () => {
-        const energy = parseInt(energySlider.value);
-        const focus = parseInt(focusSlider.value);
+        const energy = parseInt(energySlider.value, 10);
+        const focus = parseInt(focusSlider.value, 10);
         const sleep = parseFloat(sleepInput.value);
 
         const metrics = loadMetrics();
@@ -1023,7 +1301,6 @@
         saveMetrics(metrics);
         metricsMessage.textContent = "✅ Daily metrics saved!";
         metricsMessage.classList.remove("hidden");
-
         renderPerformanceChart();
 
         setTimeout(() => {
@@ -1036,7 +1313,6 @@
 
         const metrics = loadMetrics();
         const recentMetrics = metrics.slice(-7);
-
         const chartCanvas = document.getElementById("performanceChart");
         const emptyState = document.getElementById("emptyPerformanceState");
 
@@ -1057,7 +1333,7 @@
         );
         const energyData = recentMetrics.map((m) => m.energy);
         const focusData = recentMetrics.map((m) => m.focus);
-        const sleepData = recentMetrics.map((m) => m.sleep * 10); // Scale sleep for visibility
+        const sleepData = recentMetrics.map((m) => m.sleep * 10);
 
         const existingChart = window.performanceChartInstance;
         if (existingChart) {
@@ -1107,10 +1383,7 @@
             maintainAspectRatio: false,
             interaction: { mode: "index", intersect: false },
             plugins: {
-              legend: {
-                labels: { color: "#e2e8f0" },
-                position: "top",
-              },
+              legend: { labels: { color: "#e2e8f0" }, position: "top" },
             },
             scales: {
               x: {
@@ -1155,7 +1428,6 @@
         const recentSessions = sessions.filter(
           (s) => new Date(s.timestamp) > weekAgo,
         );
-
         const listContainer = document.getElementById("focusSessionsList");
         if (recentSessions.length === 0) {
           listContainer.innerHTML =

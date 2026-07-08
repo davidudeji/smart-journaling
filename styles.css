@@ -174,6 +174,96 @@ textarea:focus {
   align-items: center;
 }
 
+.voice-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.mic-pill,
+.recording-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(15, 23, 42, 0.65);
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.recording-pill {
+  color: var(--red);
+  border-color: rgba(239, 68, 68, 0.35);
+  animation: pulse 1.2s infinite;
+}
+
+.voice-button.recording {
+  background: var(--red);
+}
+
+.meter-panel {
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.waveform {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  min-height: 70px;
+  margin-bottom: 10px;
+}
+
+.waveform span {
+  display: block;
+  width: 6px;
+  height: 16px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--blue), var(--blue-strong));
+  transition: height 120ms ease;
+}
+
+.meter-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.metrics-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 12px 0 10px;
+}
+
+.metrics-grid div {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.65);
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.metrics-grid span {
+  color: var(--muted);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.metrics-grid strong {
+  font-size: 0.95rem;
+}
+
 button,
 .file-label {
   border: 0;
@@ -369,6 +459,16 @@ canvas {
   display: none;
 }
 
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
 @media (max-width: 900px) {
   .grid {
     grid-template-columns: 1fr;
@@ -376,6 +476,12 @@ canvas {
   header {
     flex-direction: column;
     align-items: flex-start;
+  }
+  .metrics-grid {
+    grid-template-columns: 1fr;
+  }
+  .meter-meta {
+    flex-direction: column;
   }
 }
 
