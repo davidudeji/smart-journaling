@@ -1,0 +1,1094 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Smart Peak Journal</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0f172a;
+        --panel: #111827;
+        --panel-2: #1f2937;
+        --panel-3: #334155;
+        --text: #e2e8f0;
+        --muted: #94a3b8;
+        --blue: #60a5fa;
+        --blue-strong: #3b82f6;
+        --amber: #f59e0b;
+        --red: #ef4444;
+        --green: #10b981;
+        --border: rgba(255, 255, 255, 0.1);
+        --shadow: 0 20px 40px rgba(2, 8, 23, 0.35);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family:
+          Inter,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+        background: linear-gradient(180deg, var(--bg), #111827 100%);
+        color: var(--text);
+        min-height: 100vh;
+      }
+
+      .app {
+        max-width: 1220px;
+        margin: 0 auto;
+        padding: 24px 20px 40px;
+      }
+
+      header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 20px;
+        padding: 14px 18px;
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        background: rgba(15, 23, 42, 0.75);
+        box-shadow: var(--shadow);
+        backdrop-filter: blur(8px);
+      }
+
+      .title-block h1 {
+        margin: 0;
+        font-size: 1.18rem;
+        letter-spacing: 0.02em;
+      }
+
+      .title-block p {
+        margin: 2px 0 0;
+        color: var(--muted);
+        font-size: 0.93rem;
+      }
+
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: var(--panel-2);
+        border: 1px solid var(--border);
+        font-size: 0.92rem;
+      }
+
+      .pill .dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: var(--amber);
+        box-shadow: 0 0 12px rgba(245, 158, 11, 0.7);
+      }
+
+      .pill.ready .dot {
+        background: var(--green);
+        box-shadow: 0 0 12px rgba(16, 185, 129, 0.5);
+      }
+      .pill.error .dot {
+        background: var(--red);
+        box-shadow: 0 0 12px rgba(239, 68, 68, 0.55);
+      }
+
+      .grid {
+        display: grid;
+        gap: 18px;
+        grid-template-columns: 1.15fr 0.85fr;
+      }
+
+      .card {
+        background: linear-gradient(
+          180deg,
+          rgba(17, 24, 39, 0.95),
+          rgba(15, 23, 42, 0.95)
+        );
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        padding: 18px;
+        box-shadow: var(--shadow);
+      }
+
+      .section-title {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+
+      .section-title h2 {
+        margin: 0;
+        font-size: 1rem;
+      }
+
+      .subtle {
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+
+      .editor-wrap {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      textarea {
+        width: 100%;
+        min-height: 240px;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 16px 16px 48px;
+        resize: vertical;
+        background: rgba(15, 23, 42, 0.9);
+        color: var(--text);
+        font-size: 1rem;
+        line-height: 1.7;
+        outline: none;
+      }
+
+      textarea:focus {
+        border-color: var(--blue);
+        box-shadow: inset 0 0 0 1px rgba(96, 165, 250, 0.25);
+      }
+
+      .counter-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        color: var(--muted);
+        font-size: 0.85rem;
+      }
+
+      .prompt {
+        color: var(--amber);
+        font-size: 0.88rem;
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+      }
+
+      button,
+      .file-label {
+        border: 0;
+        border-radius: 999px;
+        padding: 10px 14px;
+        cursor: pointer;
+        background: var(--blue-strong);
+        color: white;
+        font-weight: 600;
+        transition:
+          transform 160ms ease,
+          opacity 160ms ease,
+          background 160ms ease;
+      }
+
+      button:hover,
+      .file-label:hover {
+        transform: translateY(-1px);
+      }
+      button:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      .secondary {
+        background: var(--panel-2);
+        color: var(--text);
+      }
+      .ghost {
+        background: transparent;
+        border: 1px solid var(--border);
+        color: var(--text);
+      }
+
+      .stats-panel {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+
+      .analysis-card {
+        padding: 16px;
+        border-radius: 16px;
+        background: linear-gradient(
+          135deg,
+          rgba(59, 130, 246, 0.16),
+          rgba(15, 23, 42, 0.92)
+        );
+        border: 1px solid rgba(96, 165, 250, 0.22);
+      }
+
+      .analysis-card.stress {
+        background: linear-gradient(
+          135deg,
+          rgba(239, 68, 68, 0.16),
+          rgba(15, 23, 42, 0.92)
+        );
+        border-color: rgba(239, 68, 68, 0.22);
+      }
+
+      .analysis-card.baseline {
+        background: linear-gradient(
+          135deg,
+          rgba(51, 65, 85, 0.45),
+          rgba(15, 23, 42, 0.92)
+        );
+        border-color: rgba(148, 163, 184, 0.22);
+      }
+
+      .analysis-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+
+      .analysis-head h3 {
+        margin: 0;
+        font-size: 1.4rem;
+      }
+
+      .analysis-meta {
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+
+      .confidence {
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+
+      .intervention {
+        margin-top: 10px;
+        padding: 12px 14px;
+        background: rgba(15, 23, 42, 0.7);
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        line-height: 1.6;
+      }
+
+      .chart-card {
+        padding-top: 14px;
+      }
+
+      canvas {
+        width: 100% !important;
+        height: 260px !important;
+      }
+
+      .empty-state {
+        color: var(--muted);
+        padding: 24px 12px;
+        text-align: center;
+        border: 1px dashed var(--border);
+        border-radius: 12px;
+      }
+
+      .settings {
+        display: grid;
+        gap: 10px;
+        margin-top: 12px;
+      }
+
+      .settings .row {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: center;
+        padding: 10px 12px;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: rgba(15, 23, 42, 0.55);
+      }
+
+      .toggle {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .toggle input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        accent-color: var(--blue-strong);
+      }
+
+      .settings input[type="password"] {
+        width: 100%;
+        padding: 10px 12px;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        background: rgba(15, 23, 42, 0.8);
+        color: var(--text);
+      }
+
+      .notice,
+      .error {
+        padding: 10px 12px;
+        border-radius: 10px;
+        background: rgba(59, 130, 246, 0.12);
+        border: 1px solid rgba(96, 165, 250, 0.2);
+        color: var(--text);
+        font-size: 0.93rem;
+      }
+
+      .error {
+        background: rgba(239, 68, 68, 0.12);
+        border-color: rgba(239, 68, 68, 0.24);
+      }
+
+      .about {
+        padding: 10px 12px;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        background: rgba(15, 23, 42, 0.45);
+      }
+
+      .about summary {
+        cursor: pointer;
+        color: var(--text);
+      }
+
+      .footer-note {
+        margin-top: 16px;
+        color: var(--muted);
+        font-size: 0.86rem;
+        line-height: 1.6;
+      }
+
+      .hidden {
+        display: none;
+      }
+
+      @media (max-width: 900px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+        header {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <header>
+        <div class="title-block">
+          <h1>Smart Peak Performance Journal</h1>
+          <p>Journal freely. Let local analysis surface a useful next step.</p>
+        </div>
+        <div id="modelStatus" class="pill">
+          <span class="dot"></span>
+          <span id="modelStatusText">Loading model…</span>
+        </div>
+      </header>
+
+      <div class="grid">
+        <section class="card">
+          <div class="section-title">
+            <h2>Daily Check-In</h2>
+            <span class="subtle">Private and local</span>
+          </div>
+          <div class="editor-wrap">
+            <textarea
+              id="entryText"
+              autofocus
+              placeholder="What mattered most today? What felt heavy, sharp, or fluid?"
+            ></textarea>
+            <div class="counter-row">
+              <span id="wordCount">0 words</span>
+              <span id="charCount">0 characters</span>
+            </div>
+            <div id="lengthPrompt" class="prompt hidden">
+              Try writing a bit more for a more accurate read.
+            </div>
+            <div class="actions">
+              <button id="analyzeButton">Analyze &amp; Save</button>
+              <button id="clearButton" class="secondary">Clear</button>
+              <button id="exportButton" class="ghost">Export JSON</button>
+              <label class="file-label ghost" for="importInput"
+                >Import JSON</label
+              >
+              <input
+                id="importInput"
+                class="hidden"
+                type="file"
+                accept="application/json"
+              />
+            </div>
+            <div id="statusMessage" class="notice">
+              Your entry is analyzed locally—no network calls are made after the
+              initial model load.
+            </div>
+            <div id="errorMessage" class="error hidden"></div>
+            <div class="settings">
+              <div class="row">
+                <div class="toggle">
+                  <input id="encryptionToggle" type="checkbox" />
+                  <label for="encryptionToggle"
+                    >Encrypt entries in storage</label
+                  >
+                </div>
+                <span class="subtle">Passphrase-protected</span>
+              </div>
+              <div class="row">
+                <input
+                  id="passphraseInput"
+                  type="password"
+                  placeholder="Passphrase for local encryption"
+                />
+              </div>
+              <div class="row">
+                <span class="subtle"
+                  >If you forget the passphrase, encrypted entries cannot be
+                  recovered.</span
+                >
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="card stats-panel">
+          <div id="analyticsCard" class="analysis-card baseline">
+            <div class="analysis-head">
+              <h3 id="stateHeadline">Baseline</h3>
+              <span id="stateEmoji">⚖️</span>
+            </div>
+            <div id="analyticsMeta" class="analysis-meta">
+              No entry analyzed yet.
+            </div>
+            <div id="confidenceText" class="confidence">Confidence: —</div>
+            <div id="interventionText" class="intervention">
+              Your next step will appear here after you save an entry.
+            </div>
+            <button
+              id="copyProtocolButton"
+              class="ghost"
+              style="margin-top: 10px"
+            >
+              Copy protocol
+            </button>
+          </div>
+
+          <div class="card chart-card">
+            <div class="section-title">
+              <h2>Trend</h2>
+              <span class="subtle">Last 7 entries</span>
+            </div>
+            <div id="chartContainer">
+              <div id="emptyState" class="empty-state">
+                Your trend line will appear after your second entry.
+              </div>
+              <canvas id="trendChart" class="hidden"></canvas>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div class="footer-note">
+        This tool uses a binary sentiment model as a coaching heuristic, not a
+        clinical psychometric instrument.
+      </div>
+
+      <details class="about" style="margin-top: 10px">
+        <summary>About this tool</summary>
+        <p style="margin-bottom: 0; line-height: 1.6; color: var(--muted)">
+          It offers a private, local journaling experience with a simple
+          performance framing layer. The state mapping is heuristic and intended
+          for reflection, not diagnosis.
+        </p>
+      </details>
+    </div>
+
+    <script type="module">
+      const STORAGE_KEY = "ppj_entries";
+      const SETTINGS_KEY = "ppj_settings";
+      const CONFIDENCE_THRESHOLD = 0.75;
+      const stateConfig = {
+        flow: {
+          label: "Flow",
+          icon: "🚀",
+          intervention:
+            "You are operating in a high-leverage mental state. Capitalize on this momentum by tackling your deepest, most creative tasks right now.",
+        },
+        stress: {
+          label: "Stress",
+          icon: "⚠️",
+          intervention:
+            "Your entry indicates high friction or autonomic arousal. Action step: Perform a 2-minute Physiological Sigh (two deep inhales through the nose, one sharp exhale through the mouth) to reset your nervous system.",
+        },
+        baseline: {
+          label: "Baseline",
+          icon: "⚖️",
+          intervention:
+            "You are maintaining steady cognitive reserves. Set one clear target for the next 90 minutes.",
+        },
+      };
+
+      const entryText = document.getElementById("entryText");
+      const wordCount = document.getElementById("wordCount");
+      const charCount = document.getElementById("charCount");
+      const lengthPrompt = document.getElementById("lengthPrompt");
+      const analyzeButton = document.getElementById("analyzeButton");
+      const clearButton = document.getElementById("clearButton");
+      const exportButton = document.getElementById("exportButton");
+      const importInput = document.getElementById("importInput");
+      const copyProtocolButton = document.getElementById("copyProtocolButton");
+      const statusMessage = document.getElementById("statusMessage");
+      const errorMessage = document.getElementById("errorMessage");
+      const modelStatus = document.getElementById("modelStatus");
+      const modelStatusText = document.getElementById("modelStatusText");
+      const analyticsCard = document.getElementById("analyticsCard");
+      const stateHeadline = document.getElementById("stateHeadline");
+      const stateEmoji = document.getElementById("stateEmoji");
+      const analyticsMeta = document.getElementById("analyticsMeta");
+      const confidenceText = document.getElementById("confidenceText");
+      const interventionText = document.getElementById("interventionText");
+      const emptyState = document.getElementById("emptyState");
+      const trendChartCanvas = document.getElementById("trendChart");
+      const encryptionToggle = document.getElementById("encryptionToggle");
+      const passphraseInput = document.getElementById("passphraseInput");
+
+      let sentimentPipeline = null;
+      let chart = null;
+      let entries = [];
+      let settings = { encryptionEnabled: false };
+      let passphraseCache = "";
+      let modelReady = false;
+      let modelLoadFailed = false;
+      let isAnalyzing = false;
+
+      const showError = (message) => {
+        errorMessage.textContent = message;
+        errorMessage.classList.remove("hidden");
+      };
+
+      const clearError = () => {
+        errorMessage.textContent = "";
+        errorMessage.classList.add("hidden");
+      };
+
+      const updateCounters = () => {
+        const text = entryText.value;
+        const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+        wordCount.textContent = `${words} word${words === 1 ? "" : "s"}`;
+        charCount.textContent = `${text.length} character${text.length === 1 ? "" : "s"}`;
+        const showPrompt = words > 0 && words < 10;
+        lengthPrompt.classList.toggle("hidden", !showPrompt);
+      };
+
+      const loadSettings = () => {
+        try {
+          const raw = localStorage.getItem(SETTINGS_KEY);
+          if (raw) {
+            settings = JSON.parse(raw);
+          }
+        } catch (error) {
+          console.warn("Unable to load settings", error);
+        }
+        encryptionToggle.checked = Boolean(settings.encryptionEnabled);
+        passphraseInput.value = settings.passphrase || "";
+        passphraseCache = settings.passphrase || "";
+      };
+
+      const saveSettings = () => {
+        try {
+          localStorage.setItem(
+            SETTINGS_KEY,
+            JSON.stringify({
+              ...settings,
+              encryptionEnabled: encryptionToggle.checked,
+              passphrase: passphraseCache,
+            }),
+          );
+        } catch (error) {
+          showError("Unable to save settings. Storage may be full.");
+        }
+      };
+
+      const loadEntries = () => {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          entries = raw ? JSON.parse(raw) : [];
+        } catch (error) {
+          console.warn("Unable to load entries", error);
+          entries = [];
+        }
+
+        entries = entries.sort(
+          (a, b) => new Date(a.timestamp) - new Date(b.timestamp),
+        );
+        renderEntries();
+      };
+
+      const saveEntries = () => {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+        } catch (error) {
+          showError(
+            "Storage quota exceeded. Export your data or clear old entries.",
+          );
+        }
+      };
+
+      const renderEntries = () => {
+        if (entries.length < 2) {
+          emptyState.classList.remove("hidden");
+          trendChartCanvas.classList.add("hidden");
+        } else {
+          emptyState.classList.add("hidden");
+          trendChartCanvas.classList.remove("hidden");
+        }
+
+        const latest = entries[entries.length - 1];
+        if (latest) {
+          renderLatestAnalysis(latest);
+        } else {
+          renderLatestAnalysis(null);
+        }
+
+        renderChart();
+      };
+
+      const renderLatestAnalysis = (entry) => {
+        if (!entry) {
+          stateHeadline.textContent = "Baseline";
+          stateEmoji.textContent = "⚖️";
+          analyticsMeta.textContent = "No entry analyzed yet.";
+          confidenceText.textContent = "Confidence: —";
+          interventionText.textContent =
+            "Your next step will appear here after you save an entry.";
+          analyticsCard.className = "analysis-card baseline";
+          return;
+        }
+
+        const config = stateConfig[entry.state] || stateConfig.baseline;
+        stateHeadline.textContent = config.label;
+        stateEmoji.textContent = config.icon;
+        analyticsMeta.textContent = `Saved ${new Date(entry.timestamp).toLocaleString()}`;
+        const confidence =
+          typeof entry.confidence === "number" ? entry.confidence : 0;
+        const labelText =
+          entry.label && entry.label !== "UNANALYZED"
+            ? entry.label
+            : "Deferred";
+        confidenceText.textContent = `Confidence: ${Math.round(confidence * 100)}% · ${labelText}`;
+        interventionText.textContent =
+          entry.intervention || config.intervention;
+        analyticsCard.className = `analysis-card ${entry.state || "baseline"}`;
+      };
+
+      const renderChart = () => {
+        if (!window.Chart) {
+          return;
+        }
+
+        if (chart) {
+          chart.destroy();
+        }
+
+        if (entries.length < 2) {
+          return;
+        }
+
+        const recentEntries = entries.slice(-7);
+        const labels = recentEntries.map((entry) =>
+          new Date(entry.timestamp).toLocaleDateString(undefined, {
+            month: "short",
+            day: "numeric",
+          }),
+        );
+        const scores = recentEntries.map((entry) =>
+          Number(entry.normalizedScore ?? 50),
+        );
+        const ctx = trendChartCanvas.getContext("2d");
+        chart = new window.Chart(ctx, {
+          type: "line",
+          data: {
+            labels,
+            datasets: [
+              {
+                label: "Performance score",
+                data: scores,
+                borderColor: "#60a5fa",
+                backgroundColor: "rgba(96,165,250,0.18)",
+                pointBackgroundColor: (context) => {
+                  const value = context.raw;
+                  if (value >= 60) return "#10b981";
+                  if (value <= 40) return "#ef4444";
+                  return "#f59e0b";
+                },
+                pointRadius: 4,
+                pointHoverRadius: 6,
+                tension: 0.28,
+                fill: true,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { labels: { color: "#e2e8f0" } },
+              tooltip: {
+                callbacks: {
+                  label: (context) => {
+                    const entry = recentEntries[context.dataIndex];
+                    return `${entry.state.toUpperCase()} · confidence ${(entry.confidence * 100).toFixed(0)}%`;
+                  },
+                },
+              },
+            },
+            scales: {
+              x: {
+                ticks: { color: "#94a3b8" },
+                grid: { color: "rgba(255,255,255,0.08)" },
+              },
+              y: {
+                min: 0,
+                max: 100,
+                ticks: { color: "#94a3b8" },
+                grid: { color: "rgba(255,255,255,0.08)" },
+              },
+            },
+          },
+        });
+      };
+
+      const deriveState = (label, confidence) => {
+        if (label === "POSITIVE" && confidence >= CONFIDENCE_THRESHOLD)
+          return "flow";
+        if (label === "NEGATIVE" && confidence >= CONFIDENCE_THRESHOLD)
+          return "stress";
+        return "baseline";
+      };
+
+      const makeEntry = async (text, analysis) => {
+        const normalizedScore =
+          analysis?.confidence != null
+            ? analysis.label === "POSITIVE"
+              ? analysis.confidence * 100
+              : -analysis.confidence * 100 + 100
+            : 50;
+        const state = analysis?.state || "baseline";
+        const intervention =
+          stateConfig[state]?.intervention || stateConfig.baseline.intervention;
+        const encrypted = encryptionToggle.checked && Boolean(passphraseCache);
+        const payloadText = encrypted
+          ? await encryptText(text, passphraseCache)
+          : text;
+
+        return {
+          id: crypto.randomUUID(),
+          timestamp: new Date().toISOString(),
+          text: payloadText,
+          encrypted,
+          label: analysis?.label || "UNANALYZED",
+          confidence: analysis?.confidence ?? 0,
+          normalizedScore,
+          state,
+          wordCount: text.trim().split(/\s+/).filter(Boolean).length,
+          intervention,
+        };
+      };
+
+      const encryptText = async (plainText, passphrase) => {
+        const encoder = new TextEncoder();
+        const salt = crypto.getRandomValues(new Uint8Array(16));
+        const iv = crypto.getRandomValues(new Uint8Array(12));
+        const keyMaterial = await crypto.subtle.importKey(
+          "raw",
+          encoder.encode(passphrase),
+          "PBKDF2",
+          false,
+          ["deriveKey"],
+        );
+        const key = await crypto.subtle.deriveKey(
+          { name: "PBKDF2", salt, iterations: 250000, hash: "SHA-256" },
+          keyMaterial,
+          { name: "AES-GCM", length: 256 },
+          false,
+          ["encrypt"],
+        );
+        const ciphertext = await crypto.subtle.encrypt(
+          { name: "AES-GCM", iv },
+          key,
+          encoder.encode(plainText),
+        );
+        const combined = new Uint8Array(
+          salt.byteLength + iv.byteLength + ciphertext.byteLength,
+        );
+        combined.set(salt, 0);
+        combined.set(iv, salt.byteLength);
+        combined.set(
+          new Uint8Array(ciphertext),
+          salt.byteLength + iv.byteLength,
+        );
+        return `enc:${btoa(String.fromCharCode(...combined))}`;
+      };
+
+      const decryptText = async (payload, passphrase) => {
+        if (
+          !payload ||
+          typeof payload !== "string" ||
+          !payload.startsWith("enc:")
+        ) {
+          return payload;
+        }
+        const encoder = new TextEncoder();
+        const decoder = new TextDecoder();
+        const data = Uint8Array.from(atob(payload.slice(4)), (char) =>
+          char.charCodeAt(0),
+        );
+        const salt = data.slice(0, 16);
+        const iv = data.slice(16, 28);
+        const ciphertext = data.slice(28);
+        const keyMaterial = await crypto.subtle.importKey(
+          "raw",
+          encoder.encode(passphrase),
+          "PBKDF2",
+          false,
+          ["deriveKey"],
+        );
+        const key = await crypto.subtle.deriveKey(
+          { name: "PBKDF2", salt, iterations: 250000, hash: "SHA-256" },
+          keyMaterial,
+          { name: "AES-GCM", length: 256 },
+          false,
+          ["decrypt"],
+        );
+        const plaintext = await crypto.subtle.decrypt(
+          { name: "AES-GCM", iv },
+          key,
+          ciphertext,
+        );
+        return decoder.decode(plaintext);
+      };
+
+      const updateEntryDisplay = async () => {
+        const currentEntries = entries.slice();
+        if (!currentEntries.some((entry) => entry.encrypted)) {
+          return;
+        }
+        if (!passphraseCache) {
+          statusMessage.textContent =
+            "Enter the passphrase to view any encrypted entries after a refresh.";
+          return;
+        }
+        const decryptedEntries = [];
+        for (const entry of currentEntries) {
+          if (!entry.encrypted) {
+            decryptedEntries.push(entry);
+            continue;
+          }
+          try {
+            const decryptedText = await decryptText(
+              entry.text,
+              passphraseCache,
+            );
+            decryptedEntries.push({ ...entry, text: decryptedText });
+          } catch (error) {
+            decryptedEntries.push({
+              ...entry,
+              text: "[Unable to decrypt entry. Wrong passphrase?]",
+            });
+          }
+        }
+        entries = decryptedEntries.sort(
+          (a, b) => new Date(a.timestamp) - new Date(b.timestamp),
+        );
+        renderEntries();
+      };
+
+      const analyzeText = async (text) => {
+        if (!sentimentPipeline) {
+          return {
+            label: "UNANALYZED",
+            confidence: 0,
+            state: "baseline",
+          };
+        }
+
+        try {
+          const result = await sentimentPipeline(text);
+          const parsed = Array.isArray(result) ? result[0] : result;
+          const label = parsed?.label?.toUpperCase() || "POSITIVE";
+          const confidence = Number(parsed?.score ?? 0);
+          return {
+            label,
+            confidence,
+            state: deriveState(label, confidence),
+          };
+        } catch (error) {
+          console.warn("Inference failed", error);
+          return {
+            label: "UNANALYZED",
+            confidence: 0,
+            state: "baseline",
+          };
+        }
+      };
+
+      const setAnalyzeButtonState = () => {
+        analyzeButton.disabled =
+          isAnalyzing || (!modelReady && !modelLoadFailed);
+        analyzeButton.textContent = isAnalyzing
+          ? "Analyzing…"
+          : "Analyze & Save";
+      };
+
+      const saveCurrentEntry = async () => {
+        clearError();
+        const text = entryText.value.trim();
+        if (!text) {
+          showError("Write a few words before saving.");
+          return;
+        }
+
+        isAnalyzing = true;
+        setAnalyzeButtonState();
+        statusMessage.textContent = "Analyzing locally…";
+
+        const analysis = await analyzeText(text);
+        const entry = await makeEntry(text, analysis);
+        entries.push(entry);
+        entries = entries.sort(
+          (a, b) => new Date(a.timestamp) - new Date(b.timestamp),
+        );
+        const saved = saveEntries();
+        renderEntries();
+
+        if (saved) {
+          entryText.value = "";
+          updateCounters();
+          statusMessage.textContent =
+            "Entry saved locally. Trend and intervention updated.";
+        } else {
+          statusMessage.textContent =
+            "Entry was not saved due to storage limits.";
+        }
+
+        isAnalyzing = false;
+        setAnalyzeButtonState();
+      };
+
+      const loadModel = async () => {
+        try {
+          modelStatus.classList.remove("error");
+          modelStatus.classList.add("ready");
+          modelStatusText.textContent = "Loading model…";
+          const { pipeline, env } =
+            await import("https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.0");
+          env.allowLocalModels = false;
+          env.backends.onnx.wasm.wasmPaths =
+            "https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.0/dist/";
+          sentimentPipeline = await pipeline(
+            "sentiment-analysis",
+            "Xenova/distilbert-base-uncased-finetuned-sst-2-english",
+          );
+          modelReady = true;
+          modelLoadFailed = false;
+          modelStatus.classList.add("ready");
+          modelStatusText.textContent = "Model: ready";
+          statusMessage.textContent =
+            "Model ready. Your entries will be analyzed locally.";
+          setAnalyzeButtonState();
+        } catch (error) {
+          console.warn("Model load failed", error);
+          modelReady = false;
+          modelLoadFailed = true;
+          modelStatus.classList.remove("ready");
+          modelStatus.classList.add("error");
+          modelStatusText.textContent = "Model: offline";
+          showError(
+            "The model could not be loaded right now. You can still save entries locally and revisit analysis later.",
+          );
+          statusMessage.textContent =
+            "Model unavailable. Entries will be saved without analysis.";
+          setAnalyzeButtonState();
+        }
+      };
+
+      const exportData = () => {
+        const blob = new Blob([JSON.stringify(entries, null, 2)], {
+          type: "application/json",
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "peak-journal-export.json";
+        a.click();
+        URL.revokeObjectURL(url);
+      };
+
+      const importData = async (file) => {
+        try {
+          const text = await file.text();
+          const parsed = JSON.parse(text);
+          if (!Array.isArray(parsed)) {
+            throw new Error("Expected an array of entries.");
+          }
+          entries = parsed;
+          saveEntries();
+          renderEntries();
+          statusMessage.textContent = "Entries imported successfully.";
+        } catch (error) {
+          showError(`Unable to import file: ${error.message}`);
+        }
+      };
+
+      entryText.addEventListener("input", updateCounters);
+      clearButton.addEventListener("click", () => {
+        entryText.value = "";
+        updateCounters();
+        clearError();
+      });
+      analyzeButton.addEventListener("click", saveCurrentEntry);
+      copyProtocolButton.addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText(interventionText.textContent);
+          statusMessage.textContent = "Intervention copied to clipboard.";
+        } catch (error) {
+          showError("Clipboard access was blocked.");
+        }
+      });
+      exportButton.addEventListener("click", exportData);
+      importInput.addEventListener("change", (event) => {
+        const [file] = event.target.files || [];
+        if (file) importData(file);
+      });
+      encryptionToggle.addEventListener("change", () => {
+        settings.encryptionEnabled = encryptionToggle.checked;
+        saveSettings();
+      });
+      passphraseInput.addEventListener("input", () => {
+        passphraseCache = passphraseInput.value;
+        saveSettings();
+      });
+
+      loadSettings();
+      loadEntries();
+      updateCounters();
+      setAnalyzeButtonState();
+      loadModel();
+      updateEntryDisplay();
+    </script>
+  </body>
+</html>
