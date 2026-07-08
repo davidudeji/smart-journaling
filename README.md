@@ -1,56 +1,43 @@
-A single-page, frontend-only web application that lets a user journal freely, runs a local (in-browser) NLP sentiment model over each entry, translates the raw model output into a "peak performance" psychological state, logs the result over time, and surfaces a science-backed intervention. No backend, no network calls after initial asset load — all inference and storage happen client-side.
+# Smart Peak Journal
 
-## Features
+Smart Peak Journal is a private, browser-based journaling app for daily reflection, focus tracking, and simple performance coaching. It runs fully in the browser and keeps your data on your device.
 
-### 📝 Smart Journal
-- Private, local journaling with real-time sentiment analysis
-- Automatic psychological state detection (Flow, Stress, Baseline)
-- Contextual interventions based on detected state
-- 7-day performance trend visualization
-- Optional AES-256 encryption with passphrase protection
-- Import/export journal entries as JSON
+## What it does
 
-### 🎯 Performance Hub
-- **Focus Engine**: 25-minute Pomodoro timer with auto-journaling completions
-- **Daily Metrics Logger**: Track energy, focus, and sleep levels (1-10 scale)
-- **Performance Analytics**: Multi-axis 7-day trend chart showing correlations between sleep, energy, and focus
-- **Session History**: View completed focus sessions with timestamps
+- Lets you write or dictate journal entries
+- Analyzes entries locally with a small sentiment model
+- Tracks a simple vocal stress signal while recording
+- Shows cognitive and physiological insights in one view
+- Saves entries locally, with optional encryption
+- Supports export, import, and clearing history
 
-### 🔐 Privacy First
-- 100% local computation — no backend, no network tracking
-- Optional encryption using Web Crypto API (AES-256-GCM)
-- All ML inference runs in-browser
-- No personal data leaves your machine
+## Main features
 
-### ⚡ Tech Stack
-- Vanilla JavaScript (no frameworks)
-- Browser-based ML: Xenova Transformers (distilBERT)
-- Data visualization: Chart.js
-- Storage: localStorage with encryption
-- Deployment: Vercel
+- Journal editor with word and character counts
+- Voice dictation with microphone status and live audio meter
+- Local sentiment analysis and intervention suggestions
+- Historical trend chart for recent entries
+- Performance hub with a focus timer and daily metrics
 
----
+## Project files
 
-## Getting Started
+- index.html: main app layout and UI
+- styles.css: visual styling
+- app-logic.js: helper functions for analysis and state mapping
+- package.json: simple build script
 
-1. **Open** [https://peak-journal.vercel.app](https://peak-journal.vercel.app) (or run locally)
-2. **Journal**: Write freely about your day, click "Analyze & Save"
-3. **Performance Hub**: Switch tabs to track metrics and manage focus sessions
-4. **Encrypt** (optional): Enable encryption and set a passphrase for privacy
+## How to run
 
-## Learning Resource
+1. Open index.html in a browser, or serve the folder with any static server.
+2. Optionally run npm run build to generate a dist folder.
 
-**→ See [explainer.md](explainer.md) for a complete technical breakdown**
+## Privacy notes
 
-This document covers:
-- Architecture & data flow
-- Feature deep dives with code examples
-- How to extend the project
-- Privacy & security guarantees
-- Complete API reference
+- No backend is required.
+- Journal data stays in the browser.
+- Optional encryption uses the Web Crypto API.
+- The first model load may need a network connection, but the app is designed to work locally afterward.
 
----
+## More detail
 
-Primary user: a solo, performance-focused individual (founder, trader, student-athlete type) who wants a low-friction daily check-in tool with integrated performance tracking.
-
-Core value proposition: journaling + real-time psychological signal extraction + trend visibility + performance metrics correlation + immediate, actionable next steps — all private, all local.
+See [explainer.md](explainer.md) for a simple walkthrough of the app structure and how the main features work.
