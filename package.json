@@ -1,0 +1,8 @@
+{
+  "name": "smart-peak-journal",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "node -e \"const fs=require('fs'); const path=require('path'); const out='dist'; fs.mkdirSync(out,{recursive:true}); fs.copyFileSync('index.html', path.join(out, 'index.html'));\""
+  }
+}
