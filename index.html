@@ -12,135 +12,275 @@
       <header>
         <div class="title-block">
           <h1>Smart Peak Performance Journal</h1>
-          <p>Journal freely. Let local analysis surface a useful next step.</p>
+          <p>
+            Journal freely. Track performance. Let local analysis surface
+            actionable insights.
+          </p>
         </div>
-        <div id="modelStatus" class="pill">
-          <span class="dot"></span>
-          <span id="modelStatusText">Loading model…</span>
+        <div class="header-controls">
+          <button
+            id="viewToggle"
+            class="view-toggle active"
+            data-view="journal"
+          >
+            Journal
+          </button>
+          <button class="view-toggle" data-view="performance">
+            Performance Hub
+          </button>
+          <div id="modelStatus" class="pill">
+            <span class="dot"></span>
+            <span id="modelStatusText">Loading model…</span>
+          </div>
         </div>
       </header>
 
-      <div class="grid">
-        <section class="card">
-          <div class="section-title">
-            <h2>Daily Check-In</h2>
-            <span class="subtle">Private and local</span>
-          </div>
-          <div class="editor-wrap">
-            <textarea
-              id="entryText"
-              autofocus
-              placeholder="What mattered most today? What felt heavy, sharp, or fluid?"
-            ></textarea>
-            <div class="counter-row">
-              <span id="wordCount">0 words</span>
-              <span id="charCount">0 characters</span>
+      <!-- Journal View -->
+      <div id="journalView" class="view active">
+        <div class="grid">
+          <section class="card">
+            <div class="section-title">
+              <h2>Daily Check-In</h2>
+              <span class="subtle">Private and local</span>
             </div>
-            <div id="lengthPrompt" class="prompt hidden">
-              Try writing a bit more for a more accurate read.
-            </div>
-            <div class="actions">
-              <button id="analyzeButton">Analyze &amp; Save</button>
-              <button id="clearButton" class="secondary">Clear</button>
-              <button id="exportButton" class="ghost">Export JSON</button>
-              <label class="file-label ghost" for="importInput"
-                >Import JSON</label
-              >
-              <input
-                id="importInput"
-                class="hidden"
-                type="file"
-                accept="application/json"
-              />
-            </div>
-            <div id="statusMessage" class="notice">
-              Your entry is analyzed locally—no network calls are made after the
-              initial model load.
-            </div>
-            <div id="errorMessage" class="error hidden"></div>
-            <div class="settings">
-              <div class="row">
-                <div class="toggle">
-                  <input id="encryptionToggle" type="checkbox" />
-                  <label for="encryptionToggle"
-                    >Encrypt entries in storage</label
-                  >
-                </div>
-                <span class="subtle">Passphrase-protected</span>
+            <div class="editor-wrap">
+              <textarea
+                id="entryText"
+                autofocus
+                placeholder="What mattered most today? What felt heavy, sharp, or fluid?"
+              ></textarea>
+              <div class="counter-row">
+                <span id="wordCount">0 words</span>
+                <span id="charCount">0 characters</span>
               </div>
-              <div class="row">
+              <div id="lengthPrompt" class="prompt hidden">
+                Try writing a bit more for a more accurate read.
+              </div>
+              <div class="actions">
+                <button id="analyzeButton">Analyze &amp; Save</button>
+                <button id="clearButton" class="secondary">Clear</button>
+                <button id="exportButton" class="ghost">Export JSON</button>
+                <label class="file-label ghost" for="importInput"
+                  >Import JSON</label
+                >
                 <input
-                  id="passphraseInput"
-                  type="password"
-                  placeholder="Passphrase for local encryption"
+                  id="importInput"
+                  class="hidden"
+                  type="file"
+                  accept="application/json"
                 />
               </div>
-              <div class="row">
-                <span class="subtle"
-                  >If you forget the passphrase, encrypted entries cannot be
-                  recovered.</span
-                >
+              <div id="statusMessage" class="notice">
+                Your entry is analyzed locally—no network calls are made after
+                the initial model load.
+              </div>
+              <div id="errorMessage" class="error hidden"></div>
+              <div class="settings">
+                <div class="row">
+                  <div class="toggle">
+                    <input id="encryptionToggle" type="checkbox" />
+                    <label for="encryptionToggle"
+                      >Encrypt entries in storage</label
+                    >
+                  </div>
+                  <span class="subtle">Passphrase-protected</span>
+                </div>
+                <div class="row">
+                  <input
+                    id="passphraseInput"
+                    type="password"
+                    placeholder="Passphrase for local encryption"
+                  />
+                </div>
+                <div class="row">
+                  <span class="subtle"
+                    >If you forget the passphrase, encrypted entries cannot be
+                    recovered.</span
+                  >
+                </div>
               </div>
             </div>
-          </div>
-        </section>
+          </section>
 
-        <section class="card stats-panel">
-          <div id="analyticsCard" class="analysis-card baseline">
-            <div class="analysis-head">
-              <h3 id="stateHeadline">Baseline</h3>
-              <span id="stateEmoji">⚖️</span>
-            </div>
-            <div id="analyticsMeta" class="analysis-meta">
-              No entry analyzed yet.
-            </div>
-            <div id="confidenceText" class="confidence">Confidence: —</div>
-            <div id="interventionText" class="intervention">
-              Your next step will appear here after you save an entry.
-            </div>
-            <button
-              id="copyProtocolButton"
-              class="ghost"
-              style="margin-top: 10px"
-            >
-              Copy protocol
-            </button>
-          </div>
-
-          <div class="card chart-card">
-            <div class="section-title">
-              <h2>Trend</h2>
-              <span class="subtle">Last 7 entries</span>
-            </div>
-            <div id="chartContainer">
-              <div id="emptyState" class="empty-state">
-                Your trend line will appear after your second entry.
+          <section class="card stats-panel">
+            <div id="analyticsCard" class="analysis-card baseline">
+              <div class="analysis-head">
+                <h3 id="stateHeadline">Baseline</h3>
+                <span id="stateEmoji">⚖️</span>
               </div>
-              <canvas id="trendChart" class="hidden"></canvas>
+              <div id="analyticsMeta" class="analysis-meta">
+                No entry analyzed yet.
+              </div>
+              <div id="confidenceText" class="confidence">Confidence: —</div>
+              <div id="interventionText" class="intervention">
+                Your next step will appear here after you save an entry.
+              </div>
+              <button
+                id="copyProtocolButton"
+                class="ghost"
+                style="margin-top: 10px"
+              >
+                Copy protocol
+              </button>
             </div>
+
+            <div class="card chart-card">
+              <div class="section-title">
+                <h2>Trend</h2>
+                <span class="subtle">Last 7 entries</span>
+              </div>
+              <div id="chartContainer">
+                <div id="emptyState" class="empty-state">
+                  Your trend line will appear after your second entry.
+                </div>
+                <canvas id="trendChart" class="hidden"></canvas>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <div class="footer-note">
+          This tool uses a binary sentiment model as a coaching heuristic, not a
+          clinical psychometric instrument.
+        </div>
+
+        <details class="about" style="margin-top: 10px">
+          <summary>About this tool</summary>
+          <p style="margin-bottom: 0; line-height: 1.6; color: var(--muted)">
+            It offers a private, local journaling experience with a simple
+            performance framing layer. The state mapping is heuristic and
+            intended for reflection, not diagnosis.
+          </p>
+        </details>
+      </div>
+
+      <!-- Performance Hub View -->
+      <div id="performanceView" class="view">
+        <div class="performance-grid">
+          <!-- Left Sidebar: Focus Engine & Metric Logger -->
+          <div class="performance-sidebar">
+            <section class="card">
+              <div class="section-title">
+                <h2>Focus Engine</h2>
+                <span class="subtle">Deep work timer</span>
+              </div>
+              <div class="focus-timer">
+                <div class="timer-display">
+                  <span id="timerMinutes">25</span>:<span id="timerSeconds"
+                    >00</span
+                  >
+                </div>
+                <div class="timer-controls">
+                  <button id="timerPlayButton" class="timer-btn play">
+                    Play
+                  </button>
+                  <button id="timerPauseButton" class="timer-btn pause hidden">
+                    Pause
+                  </button>
+                  <button id="timerResetButton" class="timer-btn reset">
+                    Reset
+                  </button>
+                </div>
+                <div class="timer-info">
+                  <p id="timerStatus">
+                    Click Play to start a 25-minute focus session.
+                  </p>
+                </div>
+              </div>
+            </section>
+
+            <section class="card">
+              <div class="section-title">
+                <h2>Daily Metrics</h2>
+                <span class="subtle">Rate your state</span>
+              </div>
+              <div class="metrics-form">
+                <div class="metric-input">
+                  <label for="energySlider"
+                    >Energy Level: <span id="energyValue">5</span>/10</label
+                  >
+                  <input
+                    type="range"
+                    id="energySlider"
+                    min="1"
+                    max="10"
+                    value="5"
+                    class="slider"
+                  />
+                </div>
+                <div class="metric-input">
+                  <label for="focusSlider"
+                    >Focus Level: <span id="focusValue">5</span>/10</label
+                  >
+                  <input
+                    type="range"
+                    id="focusSlider"
+                    min="1"
+                    max="10"
+                    value="5"
+                    class="slider"
+                  />
+                </div>
+                <div class="metric-input">
+                  <label for="sleepInput"
+                    >Sleep Duration:
+                    <input
+                      type="number"
+                      id="sleepInput"
+                      min="0"
+                      max="24"
+                      step="0.5"
+                      value="8"
+                      class="small-input"
+                    />
+                    hours</label
+                  >
+                </div>
+                <button id="saveMetricsButton" class="primary-button">
+                  Save Daily Metrics
+                </button>
+                <div id="metricsMessage" class="notice hidden"></div>
+              </div>
+            </section>
           </div>
-        </section>
-      </div>
 
-      <div class="footer-note">
-        This tool uses a binary sentiment model as a coaching heuristic, not a
-        clinical psychometric instrument.
-      </div>
+          <!-- Right Panel: Analytics -->
+          <div class="performance-analytics">
+            <section class="card">
+              <div class="section-title">
+                <h2>7-Day Performance Trends</h2>
+                <span class="subtle">Energy, Focus, Sleep correlation</span>
+              </div>
+              <div id="performanceChartContainer">
+                <div id="emptyPerformanceState" class="empty-state">
+                  Log daily metrics to see your performance trends over the last
+                  7 days.
+                </div>
+                <canvas id="performanceChart" class="hidden"></canvas>
+              </div>
+            </section>
 
-      <details class="about" style="margin-top: 10px">
-        <summary>About this tool</summary>
-        <p style="margin-bottom: 0; line-height: 1.6; color: var(--muted)">
-          It offers a private, local journaling experience with a simple
-          performance framing layer. The state mapping is heuristic and intended
-          for reflection, not diagnosis.
-        </p>
-      </details>
+            <section class="card">
+              <div class="section-title">
+                <h2>Focus Sessions</h2>
+                <span class="subtle">This week's completions</span>
+              </div>
+              <div id="focusSessionsList" class="sessions-list">
+                <div class="empty-state">No focus sessions completed yet.</div>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
     </div>
 
     <script type="module">
       const STORAGE_KEY = "ppj_entries";
       const SETTINGS_KEY = "ppj_settings";
+      const METRICS_KEY = "ppj_metrics";
+      const SESSIONS_KEY = "ppj_sessions";
       const CONFIDENCE_THRESHOLD = 0.75;
+      const FOCUS_DURATION = 25 * 60; // 25 minutes in seconds
       const stateConfig = {
         flow: {
           label: "Flow",
@@ -709,6 +849,332 @@
       setAnalyzeButtonState();
       loadModel();
       updateEntryDisplay();
+
+      // ============= PERFORMANCE HUB FEATURES =============
+
+      // View toggle
+      const journalView = document.getElementById("journalView");
+      const performanceView = document.getElementById("performanceView");
+      const viewToggleButtons = document.querySelectorAll(".view-toggle");
+
+      viewToggleButtons.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          viewToggleButtons.forEach((b) => b.classList.remove("active"));
+          btn.classList.add("active");
+          const view = btn.dataset.view;
+
+          if (view === "journal") {
+            journalView.classList.add("active");
+            performanceView.classList.remove("active");
+          } else {
+            journalView.classList.remove("active");
+            performanceView.classList.add("active");
+            renderPerformanceChart();
+            renderFocusSessions();
+          }
+        });
+      });
+
+      // Focus Timer Logic
+      let timerRunning = false;
+      let timerTimeRemaining = FOCUS_DURATION;
+      let timerInterval = null;
+
+      const timerMinutes = document.getElementById("timerMinutes");
+      const timerSeconds = document.getElementById("timerSeconds");
+      const timerPlayButton = document.getElementById("timerPlayButton");
+      const timerPauseButton = document.getElementById("timerPauseButton");
+      const timerResetButton = document.getElementById("timerResetButton");
+      const timerStatus = document.getElementById("timerStatus");
+
+      const updateTimerDisplay = () => {
+        const mins = Math.floor(timerTimeRemaining / 60);
+        const secs = timerTimeRemaining % 60;
+        timerMinutes.textContent = String(mins).padStart(2, "0");
+        timerSeconds.textContent = String(secs).padStart(2, "0");
+      };
+
+      const completeTimerSession = async () => {
+        timerRunning = false;
+        clearInterval(timerInterval);
+        timerPlayButton.classList.remove("hidden");
+        timerPauseButton.classList.add("hidden");
+        timerStatus.textContent = "✅ Session completed! Added to journal.";
+
+        // Log completion
+        const logEntry = await makeEntry(
+          "Completed 25-minute Deep Work focus session",
+          {
+            label: "POSITIVE",
+            confidence: 0.95,
+            state: "flow",
+          },
+        );
+        entries.push(logEntry);
+        saveEntries();
+
+        // Save session
+        let sessions = JSON.parse(localStorage.getItem(SESSIONS_KEY) || "[]");
+        sessions.push({
+          id: crypto.randomUUID(),
+          timestamp: new Date().toISOString(),
+          duration: FOCUS_DURATION,
+        });
+        localStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions));
+
+        // Reset after 2 seconds
+        setTimeout(() => {
+          timerTimeRemaining = FOCUS_DURATION;
+          updateTimerDisplay();
+          timerStatus.textContent =
+            "Click Play to start a 25-minute focus session.";
+          renderFocusSessions();
+        }, 2000);
+      };
+
+      timerPlayButton.addEventListener("click", () => {
+        if (!timerRunning) {
+          timerRunning = true;
+          timerPlayButton.classList.add("hidden");
+          timerPauseButton.classList.remove("hidden");
+          timerStatus.textContent = "Focus session in progress...";
+
+          timerInterval = setInterval(() => {
+            timerTimeRemaining--;
+            updateTimerDisplay();
+
+            if (timerTimeRemaining <= 0) {
+              completeTimerSession();
+            }
+          }, 1000);
+        }
+      });
+
+      timerPauseButton.addEventListener("click", () => {
+        timerRunning = false;
+        clearInterval(timerInterval);
+        timerPlayButton.classList.remove("hidden");
+        timerPauseButton.classList.add("hidden");
+        timerStatus.textContent = "Paused. Click Play to resume.";
+      });
+
+      timerResetButton.addEventListener("click", () => {
+        timerRunning = false;
+        clearInterval(timerInterval);
+        timerTimeRemaining = FOCUS_DURATION;
+        updateTimerDisplay();
+        timerPlayButton.classList.remove("hidden");
+        timerPauseButton.classList.add("hidden");
+        timerStatus.textContent =
+          "Click Play to start a 25-minute focus session.";
+      });
+
+      // Metrics Logger
+      const energySlider = document.getElementById("energySlider");
+      const focusSlider = document.getElementById("focusSlider");
+      const sleepInput = document.getElementById("sleepInput");
+      const energyValue = document.getElementById("energyValue");
+      const focusValue = document.getElementById("focusValue");
+      const saveMetricsButton = document.getElementById("saveMetricsButton");
+      const metricsMessage = document.getElementById("metricsMessage");
+
+      energySlider.addEventListener("input", () => {
+        energyValue.textContent = energySlider.value;
+      });
+
+      focusSlider.addEventListener("input", () => {
+        focusValue.textContent = focusSlider.value;
+      });
+
+      const loadMetrics = () => {
+        try {
+          const raw = localStorage.getItem(METRICS_KEY);
+          return raw ? JSON.parse(raw) : [];
+        } catch (error) {
+          console.warn("Unable to load metrics", error);
+          return [];
+        }
+      };
+
+      const saveMetrics = (metrics) => {
+        try {
+          localStorage.setItem(METRICS_KEY, JSON.stringify(metrics));
+        } catch (error) {
+          metricsMessage.textContent =
+            "Unable to save metrics. Storage may be full.";
+          metricsMessage.classList.remove("hidden");
+        }
+      };
+
+      saveMetricsButton.addEventListener("click", () => {
+        const energy = parseInt(energySlider.value);
+        const focus = parseInt(focusSlider.value);
+        const sleep = parseFloat(sleepInput.value);
+
+        const metrics = loadMetrics();
+        metrics.push({
+          id: crypto.randomUUID(),
+          timestamp: new Date().toISOString(),
+          energy,
+          focus,
+          sleep,
+        });
+
+        saveMetrics(metrics);
+        metricsMessage.textContent = "✅ Daily metrics saved!";
+        metricsMessage.classList.remove("hidden");
+
+        renderPerformanceChart();
+
+        setTimeout(() => {
+          metricsMessage.classList.add("hidden");
+        }, 3000);
+      });
+
+      const renderPerformanceChart = () => {
+        if (!window.Chart) return;
+
+        const metrics = loadMetrics();
+        const recentMetrics = metrics.slice(-7);
+
+        const chartCanvas = document.getElementById("performanceChart");
+        const emptyState = document.getElementById("emptyPerformanceState");
+
+        if (recentMetrics.length === 0) {
+          emptyState.classList.remove("hidden");
+          chartCanvas.classList.add("hidden");
+          return;
+        }
+
+        emptyState.classList.add("hidden");
+        chartCanvas.classList.remove("hidden");
+
+        const labels = recentMetrics.map((m) =>
+          new Date(m.timestamp).toLocaleDateString(undefined, {
+            month: "short",
+            day: "numeric",
+          }),
+        );
+        const energyData = recentMetrics.map((m) => m.energy);
+        const focusData = recentMetrics.map((m) => m.focus);
+        const sleepData = recentMetrics.map((m) => m.sleep * 10); // Scale sleep for visibility
+
+        const existingChart = window.performanceChartInstance;
+        if (existingChart) {
+          existingChart.destroy();
+        }
+
+        const ctx = chartCanvas.getContext("2d");
+        window.performanceChartInstance = new window.Chart(ctx, {
+          type: "line",
+          data: {
+            labels,
+            datasets: [
+              {
+                label: "Energy (1-10)",
+                data: energyData,
+                borderColor: "#f59e0b",
+                backgroundColor: "rgba(245, 158, 11, 0.1)",
+                pointBackgroundColor: "#f59e0b",
+                pointRadius: 4,
+                tension: 0.3,
+                yAxisID: "y",
+              },
+              {
+                label: "Focus (1-10)",
+                data: focusData,
+                borderColor: "#60a5fa",
+                backgroundColor: "rgba(96, 165, 250, 0.1)",
+                pointBackgroundColor: "#60a5fa",
+                pointRadius: 4,
+                tension: 0.3,
+                yAxisID: "y",
+              },
+              {
+                label: "Sleep (hours ×10)",
+                data: sleepData,
+                borderColor: "#10b981",
+                backgroundColor: "rgba(16, 185, 129, 0.1)",
+                pointBackgroundColor: "#10b981",
+                pointRadius: 4,
+                tension: 0.3,
+                yAxisID: "y2",
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: "index", intersect: false },
+            plugins: {
+              legend: {
+                labels: { color: "#e2e8f0" },
+                position: "top",
+              },
+            },
+            scales: {
+              x: {
+                ticks: { color: "#94a3b8" },
+                grid: { color: "rgba(255,255,255,0.08)" },
+              },
+              y: {
+                type: "linear",
+                position: "left",
+                min: 0,
+                max: 10,
+                ticks: { color: "#94a3b8" },
+                grid: { color: "rgba(255,255,255,0.08)" },
+                title: {
+                  display: true,
+                  text: "Energy & Focus",
+                  color: "#e2e8f0",
+                },
+              },
+              y2: {
+                type: "linear",
+                position: "right",
+                min: 0,
+                max: 240,
+                ticks: { color: "#94a3b8" },
+                grid: { drawOnChartArea: false },
+                title: {
+                  display: true,
+                  text: "Sleep (scaled)",
+                  color: "#e2e8f0",
+                },
+              },
+            },
+          },
+        });
+      };
+
+      const renderFocusSessions = () => {
+        const sessions = JSON.parse(localStorage.getItem(SESSIONS_KEY) || "[]");
+        const now = new Date();
+        const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        const recentSessions = sessions.filter(
+          (s) => new Date(s.timestamp) > weekAgo,
+        );
+
+        const listContainer = document.getElementById("focusSessionsList");
+        if (recentSessions.length === 0) {
+          listContainer.innerHTML =
+            '<div class="empty-state">No focus sessions completed yet.</div>';
+          return;
+        }
+
+        listContainer.innerHTML = recentSessions
+          .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+          .map(
+            (session) => `
+            <div class="session-item">
+              <span class="session-date">${new Date(session.timestamp).toLocaleString()}</span>
+              <span class="session-duration">✓ 25 min completed</span>
+            </div>
+          `,
+          )
+          .join("");
+      };
     </script>
   </body>
 </html>
